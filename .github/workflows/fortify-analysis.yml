@@ -10,6 +10,19 @@ name: Fortify on Demand Scan
 
 on:
   workflow_call:
+    inputs:
+      java-version:
+        description: 'Java version to set up (e.g. 17, 21). Leave empty to skip Java setup.'
+        type: string
+        required: false
+      node-version:
+        description: 'Node.js version to set up (e.g. 20). Leave empty to skip Node.js setup.'
+        type: string
+        required: false
+      dotnet-version:
+        description: '.NET version to set up (e.g. 8.0). Leave empty to skip .NET setup.'
+        type: string
+        required: false
     secrets:
       OSS_FOD_TENANT:
         required: false
@@ -51,24 +64,33 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Java
+        if: inputs.java-version != ''
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: ${{ inputs.java-version }}
+
+      - name: Setup Node.js
+        if: inputs.node-version != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+
+      - name: Setup .NET
+        if: inputs.dotnet-version != ''
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ inputs.dotnet-version }}
 
       - name: Run FoD SAST scan
-        uses: fortify/github-action@v2
-        with:
-          sast-scan: true
-          debricked-sca-scan: true
+        uses: fortify/github-action@v3
         env:
           FOD_URL: https://ams.fortify.com/
           FOD_TENANT: ${{secrets.OSS_FOD_TENANT}}
           FOD_USER: ${{secrets.OSS_FOD_USER}}
           FOD_PASSWORD: ${{secrets.OSS_FOD_PAT}}
           FOD_LOGIN_EXTRA_OPTS: --socket-timeout=600s
-          DO_SETUP: true
-          DO_JOB_SUMMARY: true
-          DO_EXPORT: true
+          DO_SCA_SCAN: true
+          DO_AVIATOR_AUDIT: true
+          OVERRIDE_SAST_SETTINGS: true
           SETUP_EXTRA_OPTS: --sdlc-status Development --scan-types sast
-          PACKAGE_EXTRA_OPTS: -oss
